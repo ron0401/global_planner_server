@@ -3,6 +3,7 @@ import numpy as np
 import uuid
 from pykml import parser
 import zipfile
+from typing import List
 
 class geo_point:
     def __init__(self,lat,lon):
@@ -33,12 +34,26 @@ class MapPoint(LocalPoint):
     """AA"""
     def __init__(self, x, y, z) -> None:
         super().__init__(x, y, z)
-        self.ID = str(uuid.uuid4())
+    
 
 
 def get_localpoints_distance(p1:LocalPoint,p2:LocalPoint):
     v = p1.vector - p2.vector
     return np.linalg.norm(v,ord=2)
+
+class GeoObject:
+    class route:
+        def __init__(self) -> None:
+            self.points = List[geo_point]
+            pass
+    def __init__(self,kmzpath) -> None:
+        self.Routes = []
+        geos = get_geo_points_from_kmz(kmzpath)
+        for i in geos:
+            g = GeoObject.route()
+            g.points = i
+            self.Routes.append(g)
+        pass
 
 def get_geo_points_from_kmz(path:str):
     with zipfile.ZipFile(path) as zf:
@@ -46,10 +61,11 @@ def get_geo_points_from_kmz(path:str):
             b = f.read()
 
     root = parser.fromstring(b)
-    mark = root.Document.Placemark
+    mark = root.Document.Folder.Placemark
 
     ret = []
     for m in mark:
+        r = []
         corstr = str(m.LineString.coordinates.text)
         corstr = corstr.replace('\t', ' ')
         corstr = corstr.replace('\n', ' ')
@@ -59,9 +75,10 @@ def get_geo_points_from_kmz(path:str):
         for i in p:
             try:
                 g = geo_point(float(i.split(',')[1]),float(i.split(',')[0]))
-                ret.append(g)
+                r.append(g)
             except:
                 pass
+        ret.append(r)
     return ret
 
 def complement_localpoints(points:list,th:float):
@@ -96,4 +113,10 @@ def complement_geo_points(points:list, th:float):
         lst.append(get_geopoint_from_localpoint(p,points[0]))
     return lst
     
+def get_localpoints_from_geopoints(geos:list,datum:geo_point):
+    i:geo_point
+    ret = []
+    for i in geos:
+        ret.append(LocalPoint.get_local_point_from_geo(i,datum))
+    return ret
 
